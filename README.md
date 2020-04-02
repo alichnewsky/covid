@@ -2,9 +2,11 @@
 
 Produce images like ![ like this one](/doc/coronavirus.png)
 
+Also provided is a jupyter notebook to play with.
+
 ## install requirements
 ```
-pip install -U requirements.txt
+pip install -U -R requirements.txt
 ```
 
 ## run
