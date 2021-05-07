@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''
 Script to plot the SARS-nCOV-2 dataset
 '''
@@ -44,8 +44,8 @@ def download():
         _download()
 
 def get_countries_of_interest():
-#        countries_of_interest = ["France", "Italy", "United Kingdom", "US", "China" ]
-        countries_of_interest = ["France", "Italy", "United Kingdom", "Israel" ]
+        countries_of_interest = ["France", "Italy", "United Kingdom", "US", "China" ]
+#        countries_of_interest = ["France", "Italy", "United Kingdom", "Israel" ]
         return countries_of_interest
 
 def get_states_of_interest():
@@ -162,18 +162,19 @@ def plot( draw, save, relative, days_to_ignore ):
         figsize=(60,30)
         fontsize=20
 
-        # fixme : make a parameter of both of these
-        #days_to_ignore = 200
-
         # this could be a parameter, but very tricky....
+        # people are avoiding weekend reports?
+        # 7 days is the best rolling window
         window_size = 7
 
         _, ((ax1, ax2), (ax3, ax4))  = plt.subplots(2,2, figsize=figsize)
 
         countries_of_interest = get_countries_of_interest()
 
+        # only download if it is mmissing or outdated?
         populations = { c : CountryInfo(c).info()['population'] for c in countries_of_interest }
-        print( populations)
+        click.echo( "populations of countries on the plots" )
+        click.echo( populations )
 
         def plot_dataset( df, countries_of_interest, ax1, ax2  ):
                 
@@ -183,8 +184,6 @@ def plot( draw, save, relative, days_to_ignore ):
                         if relative:
                                 mhab = populations[country] * 1e-6
                                 data_country /= mhab
-                        #diff_country = data_country.diff().dropna()
-                        #rolling_windowed_sum_diff_country = diff_country.rolling( window_size, win_type='boxcar' ).sum().dropna() / window_size
 
                         ax1.plot(data_country[(5+days_to_ignore):], lw=3, alpha=0.5, label=country)
 
