@@ -13,6 +13,8 @@ import os.path
 import click
 import matplotlib.pyplot as plt
 import pandas as pd
+from countryinfo import CountryInfo
+
 
 # pylint: disable=fixme, bad-whitespace, bad-indentation, bad-continuation, line-too-long, invalid-name, missing-docstring
 
@@ -42,7 +44,8 @@ def download():
         _download()
 
 def get_countries_of_interest():
-        countries_of_interest = ["France", "Italy", "United Kingdom", "US", "China" ]
+#        countries_of_interest = ["France", "Italy", "United Kingdom", "US", "China" ]
+        countries_of_interest = ["France", "Italy", "United Kingdom", "Israel" ]
         return countries_of_interest
 
 def get_states_of_interest():
@@ -124,7 +127,9 @@ def get_eu_countries():
 @cli.command()
 @click.option( '--draw/--no-draw', default=True, help='plot on screen' )
 @click.option( '--save', is_flag=True, default=False, help='save as PNG' )
-def plot( draw, save ):
+@click.option( '--relative', is_flag=True, default=False, help='plot per stats per million inhabitants' )
+@click.option( '--days_to_ignore', default=300, help='days to ignore since the beginning of pandemic' )
+def plot( draw, save, relative, days_to_ignore ):
         '''
         Plot dataset
         '''
@@ -157,73 +162,62 @@ def plot( draw, save ):
         figsize=(60,30)
         fontsize=20
 
-        days_to_ignore = 30
+        # fixme : make a parameter of both of these
+        #days_to_ignore = 200
+
+        # this could be a parameter, but very tricky....
         window_size = 7
 
-        _, (ax1, ax2, ax3) = plt.subplots(1,3, figsize=figsize)
+        _, ((ax1, ax2), (ax3, ax4))  = plt.subplots(2,2, figsize=figsize)
 
         countries_of_interest = get_countries_of_interest()
 
-        for country in countries_of_interest:
+        populations = { c : CountryInfo(c).info()['population'] for c in countries_of_interest }
+        print( populations)
 
-                data_country = df_confd.loc[df_confd['Country/Region'] == country].filter(regex='.*/20',axis=1).sum(0)
-                diff_country = data_country.diff().dropna()
-                rolling_windowed_sum_diff_country = diff_country.rolling( window_size, win_type='boxcar' ).sum().dropna() / window_size
+        def plot_dataset( df, countries_of_interest, ax1, ax2  ):
+                
+                for country in countries_of_interest:
 
-                for ax in [ax1]:#, ax2:
-                        ax.plot(data_country[(5+days_to_ignore):], lw=3, alpha=0.5, label=country)
-                for ax in [ax3]:#, ax2:
-                        ax.plot(data_country[(5+window_size-1+days_to_ignore+1):],
-                                rolling_windowed_sum_diff_country[(5+days_to_ignore):],
-                                lw=3, alpha=0.5, label=country)
+                        data_country = df.loc[df['Country/Region'] == country].filter(regex='.*/2[01]',axis=1).sum(0)
+                        if relative:
+                                mhab = populations[country] * 1e-6
+                                data_country /= mhab
+                        #diff_country = data_country.diff().dropna()
+                        #rolling_windowed_sum_diff_country = diff_country.rolling( window_size, win_type='boxcar' ).sum().dropna() / window_size
 
-        european_countries = get_european_countries()
+                        ax1.plot(data_country[(5+days_to_ignore):], lw=3, alpha=0.5, label=country)
 
-        data_europe = df_confd.loc[df_confd['Country/Region'].isin(european_countries) ].filter(regex='.*/20',axis=1).sum(0)
-        diff_europe = data_europe.diff().dropna()
-        rolling_windowed_sum_diff_europe = diff_europe.rolling( window_size, win_type='boxcar').sum().dropna() / window_size
+                for country in countries_of_interest:
+                        data_country = df.loc[df['Country/Region'] == country].filter(regex='.*/2[01]',axis=1).sum(0)
+                        if relative:
+                                mhab = populations[country] * 1e-6
+                                data_country /= mhab
 
-        #death_europe  = df_death.loc[df_death['Country/Region'].isin(european_countries) ].filter(regex='.*/20',axis=1).sum(0)
+                        diff_country = data_country.diff().dropna()
+                        smoothed_diff_country = diff_country.rolling( window_size, win_type='boxcar' ).sum().dropna() / window_size
 
-        for ax in [ax1]:
-                ax.plot(data_europe[(5+days_to_ignore):], lw=3, alpha=0.5, label='Europe')
-
-        for ax in [ax3]:
-                ax.plot( data_europe[(5+window_size-1+days_to_ignore+1):],
-                         rolling_windowed_sum_diff_europe[(5+days_to_ignore):],
-                         lw=3,
-                         alpha=0.5,
-                         label='EU'
-                )
-
-        data_china = df_confd.loc[df_confd['Country/Region'].isin(['China']) ].filter(regex='.*/20',axis=1).sum(0)
-        diff_china = data_china.diff().dropna()
-        rolling_windowed_sum_diff_china = diff_china.rolling( window_size, win_type='boxcar').sum().dropna() / window_size
-        ax3.plot( data_china[(5+window_size-1+1):],
-                  rolling_windowed_sum_diff_china[(5):],
-                  lw=3,
-                  alpha=0.5,
-                  label='China'
-        )
-
-        for country in countries_of_interest:
-                data_country = df_confd.loc[df_confd['Country/Region'] == country].filter(regex='.*/20',axis=1).sum(0)
-                diff_country = data_country.diff().dropna()
-                smoothed_diff_country = diff_country.rolling( window_size, win_type='boxcar' ).sum().dropna() / window_size
-                for ax in [ax2]:
-                        ax.plot( smoothed_diff_country[(5+days_to_ignore+window_size-1):],
-                                 lw=3,
-                                 alpha=0.5,
-                                 label=country
+                        ax2.plot( smoothed_diff_country[(5+days_to_ignore+window_size-1):],
+                                  lw=3,
+                                  alpha=0.5,
+                                  label=country
                         )
 
-        ax1.set_title("Confirmed cases of coronavirus in some countries ")
-        ax2.set_title("new cases from corona virus in same countries")
-        ax3.set_title("smoothed new cases per day vs total cases from corona virus in same countries.\n"
-                      "straight line = exponential growth of total cases"
-        )
+        plot_dataset( df_confd, countries_of_interest, ax1, ax2 )
+        plot_dataset( df_death, countries_of_interest, ax3, ax4 )
 
-        for ax in [ax1, ax2, ax3]:
+        if relative:
+                ax1.set_title("cumulative cases per million inhabitants" )
+                ax2.set_title("daily new cases per million inhabitants" )
+                ax3.set_title("cumulative deaths per million inhabitants" )
+                ax4.set_title("new deaths per million inhabitants")
+        else:
+                ax1.set_title("cumulative cases")
+                ax2.set_title("new cases")
+                ax3.set_title("cumulative deaths")
+                ax4.set_title("new deaths")
+
+        for ax in [ax1, ax2, ax3, ax4]:
                 ax.xaxis.set_major_locator(plt.MaxNLocator(12))
                 ax.legend()
 
@@ -235,8 +229,6 @@ def plot( draw, save ):
 
                 plt.setp( ax.get_xticklabels(), rotation=90)
 
-        ax3.set_xscale('log')
-        ax3.set_yscale('log')
 
         if save :
                 click.echo( 'saving to PNG...' )

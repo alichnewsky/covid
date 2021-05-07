@@ -36,7 +36,9 @@ Usage: covid.py plot [OPTIONS]
   Plot dataset
 
 Options:
-  --draw / --no-draw  plot on screen
-  --save              save as PNG
-  --help              Show this message and exit.
+  --draw / --no-draw        plot on screen
+  --save                    save as PNG
+  --relative                plot per stats per million inhabitants
+  --days_to_ignore INTEGER  days to ignore since the beginning of pandemic
+  --help                    Show this message and exit.
 ```

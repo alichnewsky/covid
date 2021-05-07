@@ -1,3 +1,5 @@
 click
 matplotlib
 pandas
+scipy
+countryinfo
